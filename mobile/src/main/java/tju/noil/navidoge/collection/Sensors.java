@@ -6,35 +6,46 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.widget.TextView;
-import java.io.OutputStream;
+
+import com.google.android.gms.appindexing.Action;
+import com.google.android.gms.appindexing.AppIndex;
+import com.google.android.gms.common.api.GoogleApiClient;
 
 /**
  * Created by noil on 2016/7/22.
  */
 public class Sensors extends Activity implements SensorEventListener {
-    public int[] Sensors={0,Sensor.TYPE_ACCELEROMETER,Sensor.TYPE_MAGNETIC_FIELD,Sensor.TYPE_GYROSCOPE,Sensor.TYPE_GRAVITY};
+    public int[] Sensors = {0, Sensor.TYPE_ACCELEROMETER, Sensor.TYPE_MAGNETIC_FIELD, Sensor.TYPE_GYROSCOPE, Sensor.TYPE_GRAVITY};
     private final SensorManager sensorManager;
     private final Sensor accelerateSensor;
     private final Sensor magneticFieldSensor;
     private final Sensor gyroscopeSensor;
     private final Sensor gravitySensor;
-    public int sensorNumber=4;
-    private int windowSize=20;
+    public int sensorNumber = 4;
+    private int windowSize = 20;
     private static final float NS2S = 1.0f / 1000000000.0f;
     private TextView textView[];
-    private static int index=0;
+    private static int index = 0;
     private float value[][] = new float[10][6];
-    private float records[][]=new float[4][windowSize];
+    private float records[][] = new float[4][windowSize];
     public boolean record;
     public int recordNo;
     private StringBuilder outputString;
     public boolean first;
-    public Sensors(Context context,TextView[] textView) {
-        this.textView=textView;
-        recordNo=0;
-        sensorManager = (SensorManager)context.getSystemService(Context.SENSOR_SERVICE);
+    /**
+     * ATTENTION: This was auto-generated to implement the App Indexing API.
+     * See https://g.co/AppIndexing/AndroidStudio for more information.
+     */
+    private GoogleApiClient client;
+
+    public Sensors(Context context, TextView[] textView) {//构造函数
+        //初始化
+        this.textView = textView;
+        recordNo = 0;
+        sensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
         accelerateSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         magneticFieldSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
         gyroscopeSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
@@ -43,21 +54,25 @@ public class Sensors extends Activity implements SensorEventListener {
         sensorManager.registerListener(this, magneticFieldSensor, SensorManager.SENSOR_DELAY_GAME);
         sensorManager.registerListener(this, gyroscopeSensor, SensorManager.SENSOR_DELAY_GAME);
         sensorManager.registerListener(this, gravitySensor, SensorManager.SENSOR_DELAY_GAME);
-        first=true;
+        first = true;
+
     }
 
-    public void startRecord(){
-        record=true;
-        outputString=new StringBuilder();
+    public void startRecord() {
+        record = true;
+        outputString = new StringBuilder();
     }
 
-    public void stopRecord(){
+    public void stopRecord() {
         recordNo++;
-        record=false;
+        record = false;
     }
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
     }
 
     protected void onResume() {
@@ -74,37 +89,40 @@ public class Sensors extends Activity implements SensorEventListener {
     }
 
     public void onSensorChanged(SensorEvent event) {
-        if (first){
-            for (int i=0;i<10;i++) {
-                value[i][3]=event.timestamp;
-                value[i][4]=0;
+        if (first) {
+            for (int i = 0; i < 10; i++) {
+                value[i][3] = event.timestamp;
+                value[i][4] = 0;
             }
-            first=false;
+            first = false;
         }
-        switch (event.sensor.getType())
-        {
+        switch (event.sensor.getType()) {
             case Sensor.TYPE_ACCELEROMETER:
                 value[1][0] = event.values[0];
                 value[1][1] = event.values[1];
                 value[1][2] = event.values[2];
                 value[1][3] = event.timestamp;
-                if (index==1){setString(getCurrentData(),textView[2]);}
+                if (index == 1) {
+                    setString(getCurrentData(), textView[2]);
+                }
                 break;
             case Sensor.TYPE_MAGNETIC_FIELD:
                 value[2][0] = event.values[0];
                 value[2][1] = event.values[1];
                 value[2][2] = event.values[2];
                 value[2][3] = event.timestamp;
-                float [] values = new float[3];
-                float [] R= new float[9];
-                float [] acc=new float[3];
-                acc[0]=value[1][0];
-                acc[1]=value[1][1];
-                acc[2]=value[1][2];
-                SensorManager.getRotationMatrix(R,null,acc,event.values);
-                SensorManager.getOrientation(R,values);
-                value[2][4] =  values[0];
-                if (index==2){setString(getCurrentData(),textView[2]);}
+                float[] values = new float[3];
+                float[] R = new float[9];
+                float[] acc = new float[3];
+                acc[0] = value[1][0];
+                acc[1] = value[1][1];
+                acc[2] = value[1][2];
+                SensorManager.getRotationMatrix(R, null, acc, event.values);
+                SensorManager.getOrientation(R, values);
+                value[2][4] = values[0];
+                if (index == 2) {
+                    setString(getCurrentData(), textView[2]);
+                }
                 break;
             case Sensor.TYPE_GYROSCOPE:
                 final float dT = (event.timestamp - value[3][3]) * NS2S;
@@ -112,68 +130,71 @@ public class Sensors extends Activity implements SensorEventListener {
                 value[3][1] = event.values[1];
                 value[3][2] = event.values[2];
                 value[3][3] = event.timestamp;
-                float v = (float)Math.sqrt(value[3][1]*value[3][1]+value[3][2]*value[3][2]);
-                if (value[3][1]*value[3][2]<0){
-                    if (value[3][1]+value[3][2]<0)
-                        v=-v;
+                float v = (float) Math.sqrt(value[3][1] * value[3][1] + value[3][2] * value[3][2]);
+                if (value[3][1] * value[3][2] < 0) {
+                    if (value[3][1] + value[3][2] < 0)
+                        v = -v;
+                } else {
+                    if (value[3][1] < 0)
+                        v = -v;
                 }
-                else{
-                    if (value[3][1]<0)
-                        v=-v;
+                value[3][4] = value[3][4] - v * dT;
+                value[3][5] = value[3][5] - value[3][0] * dT;
+                if (index == 3) {
+                    setString(getCurrentData(), textView[2]);
                 }
-                value[3][4]=value[3][4]-v*dT;
-                value[3][5]=value[3][5]-value[3][0]*dT;
-                if (index==3){setString(getCurrentData(),textView[2]);}
                 break;
             case Sensor.TYPE_GRAVITY:
                 value[4][0] = event.values[0];
                 value[4][1] = event.values[1];
                 value[4][2] = event.values[2];
                 value[4][3] = event.timestamp;
-                float g=(float)Math.sqrt(value[4][0]*value[4][0]+value[4][1]*value[4][1]+value[4][2]*value[4][2]);
-                value[4][4]=(float)Math.asin(value[4][2]/g);
-                if (index==4){setString(getCurrentData(),textView[2]);}
+                float g = (float) Math.sqrt(value[4][0] * value[4][0] + value[4][1] * value[4][1] + value[4][2] * value[4][2]);
+                value[4][4] = (float) Math.asin(value[4][2] / g);
+                if (index == 4) {
+                    setString(getCurrentData(), textView[2]);
+                }
                 break;
         }
     }
 
-    public void updateRecord(boolean All){
+    public void updateRecord(boolean All) {
 
-        if(All){
+        if (All) {
             outputString.append(getCurrentOutput(1));
             outputString.append(getCurrentOutput(2));
             outputString.append(getCurrentOutput(3));
             outputString.append(getCurrentOutput(4));
-        }
-        else{
-            records[0][recordNo%windowSize]=value[2][4];//C
-            records[1][recordNo%windowSize]=value[3][4];//S
-            records[2][recordNo%windowSize]=value[3][5];//S2
-            records[3][recordNo%windowSize]=value[4][4];//G
+        } else {
+            records[0][recordNo % windowSize] = value[2][4];//C
+            records[1][recordNo % windowSize] = value[3][4];//S
+            records[2][recordNo % windowSize] = value[3][5];//S2
+            records[3][recordNo % windowSize] = value[4][4];//G
             recordNo++;
 
-            if (recordNo%windowSize==0){
-                for (int i=0;i<windowSize;i++){
-                    for (int j=0;j<4;j++){
-                        outputString.append(records[j][i]+" ");
+            if (recordNo % windowSize == 0) {
+                for (int i = 0; i < windowSize; i++) {
+                    for (int j = 0; j < 4; j++) {
+                        outputString.append(records[j][i]).append(" ");
                     }
                     outputString.append("\n");
                 }
-                records=new float[4][windowSize];
+                records = new float[4][windowSize];
             }
         }
     }
-    public String getCurrentData(){
-        return new String("x:" + value[index][0] + "\n" + "y:" + value[index][1] + "\n" + "z:" + value[index][2] + "\n"+ "o:" + value[index][4] + "\n");
+
+    public String getCurrentData() {
+        return "x:" + value[index][0] + "\n" + "y:" + value[index][1] + "\n" + "z:" + value[index][2] + "\n" + "o:" + value[index][4] + "\n";
     }
-    public String getCurrentOutput(int i){
-        index=i;
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append(i+ " "+value[i][0] + " " + value[i][1] + " "  + value[i][2]+ " "  + value[i][3]+ " "  + value[i][4]+ " "  + value[i][5]+"\n");
-        return stringBuilder.toString();
+
+    public String getCurrentOutput(int i) {
+        index = i;
+        return (i + " " + value[i][0] + " " + value[i][1] + " " + value[i][2] + " " + value[i][3] + " " + value[i][4] + " " + value[i][5] + "\n");
     }
-    public String getCurrentType(int i){
-        index=i;
+
+    public String getCurrentType(int i) {
+        index = i;
         StringBuilder stringBuilder = new StringBuilder();
         switch (Sensors[i]) {
             case Sensor.TYPE_ACCELEROMETER:
@@ -191,12 +212,52 @@ public class Sensors extends Activity implements SensorEventListener {
         return stringBuilder.toString();
     }
 
-    public String getOutputString(){
+    public String getOutputString() {
         return outputString.toString();
     }
 
-    public void setString(String string,TextView v){
+    public void setString(String string, TextView v) {
         v.setText(string);
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        client.connect();
+        Action viewAction = Action.newAction(
+                Action.TYPE_VIEW, // TODO: choose an action type.
+                "Sensors Page", // TODO: Define a title for the content shown.
+                // TODO: If you have web page content that matches this app activity's content,
+                // make sure this auto-generated web page URL is correct.
+                // Otherwise, set the URL to null.
+                Uri.parse("http://host/path"),
+                // TODO: Make sure this auto-generated app deep link URI is correct.
+                Uri.parse("android-app://tju.noil.navidoge.collection/http/host/path")
+        );
+        AppIndex.AppIndexApi.start(client, viewAction);
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        Action viewAction = Action.newAction(
+                Action.TYPE_VIEW, // TODO: choose an action type.
+                "Sensors Page", // TODO: Define a title for the content shown.
+                // TODO: If you have web page content that matches this app activity's content,
+                // make sure this auto-generated web page URL is correct.
+                // Otherwise, set the URL to null.
+                Uri.parse("http://host/path"),
+                // TODO: Make sure this auto-generated app deep link URI is correct.
+                Uri.parse("android-app://tju.noil.navidoge.collection/http/host/path")
+        );
+        AppIndex.AppIndexApi.end(client, viewAction);
+        client.disconnect();
     }
 
 //    public void updateOrientation(){
