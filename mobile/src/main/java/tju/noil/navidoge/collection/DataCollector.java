@@ -27,6 +27,7 @@ public class DataCollector {
     private File file;
     private FileOutputStream fos;
     private WifiStation wifiStation;
+    private StringBuilder outputString;
     public DataCollector(Context context,TextView[] textView){
         this.context=context;
         this.wiFi=new WiFi(context);
@@ -41,28 +42,43 @@ public class DataCollector {
     public String getAllSensorsSize(){
         return new String("该设备共有" + allSensors.size() + "个传感器");
     }
+    public void IndexMove(int i){
+        if(index+i>=0&&index+i<=sensors.sensorNumber){
+            index=index+i;
+        }
+    }
     public String getCurrentIndex(){
         return new String("当前传感器: " +index);
     }
-    public String getCurrentSensor(int i){
-        if(index+i>=0&&index+i<=9){
-            index=index+i;
-            if(index==0)
-                return wiFi.ScanWifi();
-            else
-                return sensors.getCurrent(index);
+    public String getCurrentSensor(){
+        if(index==0){
+            sensors.getCurrentType(index);
+            return "WiFi";
         }
-        return "NO CURRENT DATA";
-    }
-    public void updateRecond(int type){
-        if (index==0)
-            return;
         else
-            sensors.updateRecond(type);
+            return sensors.getCurrentType(index);
+    }
+    public String getCurrentData(){
+        if (index>0){
+            return sensors.getCurrentData();
+        }
+        else
+            return wiFi.ScanWifi();
+    }
+    public void updateRecord(){
+        if (index==-1){
+            sensors.updateRecord(true);
+            wiFi.updateRecord();
+        }
+        else if(index==0){
+            wiFi.updateRecord();
+        }
+        else{
+            sensors.updateRecord(false);
+        }
     }
     public void startRecord(){
-        if (index!=0)
-            sensors.startRecord();
+        sensors.startRecord();
     }
     public void stopRecord(){
         sensors.stopRecord();
@@ -73,62 +89,14 @@ public class DataCollector {
         else
             return sensors.getOutputString();
     }
-    public String getOutputString(){
-        return sensors.getOutputString();
-    }
-    public void saveDate(String content){
-        try {
-            fos = new FileOutputStream(file,true);
-            byte [] bytes = content.getBytes();
-            fos.write(bytes);
-            fos.close();
-            Toast.makeText(context, "保存成功", Toast.LENGTH_LONG).show();
-        } catch (IOException e) {
-            e.printStackTrace();
+    public String getOutputString(int type){
+        if (type==1){
+            return sensors.getOutputString();
         }
+        else if (type==2){
+            return wiFi.getOutputString();
+        }
+        else
+            return "";
     }
-//    public String getAllSensorsDetail(){
-//        StringBuilder stringBuilder=new StringBuilder();
-//        for (Sensor s : allSensors) {
-//            String tempString=s.getType()+"\n" + "  设备名称：" + s.getName() + "\n" + "  设备版本：" + s.getVersion() + "\n" + "  供应商："
-//                    + s.getVendor() + "\n";
-//            switch (s.getType()) {
-//
-//                case Sensor.TYPE_ACCELEROMETER:
-//                    stringBuilder.append(" 加速度传感器"+ tempString);
-//                    break;
-//                case Sensor.TYPE_GYROSCOPE:
-//                    stringBuilder.append(" 陀螺仪传感器" + tempString);
-//                    break;
-//                case Sensor.TYPE_LIGHT:
-//                    stringBuilder.append(" 环境光线传感器" + tempString);
-//                    break;
-//                case Sensor.TYPE_MAGNETIC_FIELD:
-//                    stringBuilder.append(" 电磁场传感器" + tempString);
-//                    break;
-//                case Sensor.TYPE_ORIENTATION:
-//                    stringBuilder.append(" 方向传感器" + tempString);
-//                    break;
-//                case Sensor.TYPE_PROXIMITY:
-//                    stringBuilder.append(" 距离传感器" + tempString);
-//                    break;
-//                case Sensor.TYPE_ROTATION_VECTOR:
-//                    stringBuilder.append(" 翻转传感器" + tempString);
-//                    break;
-//                case Sensor.TYPE_LINEAR_ACCELERATION:
-//                    stringBuilder.append(" 线性加速度" + tempString);
-//                    break;
-//                case Sensor.TYPE_GRAVITY:
-//                    stringBuilder.append(" 重力感应器传感器" + tempString);
-//                    break;
-//                default:
-//                    stringBuilder.append(" 未知传感器" + tempString);
-//                    break;
-//            }
-//        }
-//        return stringBuilder.toString();
-//    }
-//    public WifiStation getWifiStation(){
-//        return wifiStation;
-//    }
 }

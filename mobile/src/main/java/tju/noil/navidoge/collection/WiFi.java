@@ -3,6 +3,7 @@ package tju.noil.navidoge.collection;
 import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
+import android.widget.Toast;
 
 import java.util.List;
 
@@ -16,9 +17,13 @@ public class WiFi {
     private List<ScanResult> wifiList;
     private ScanResult scanResult;
     private int recordNo;
+    private StringBuilder outputString;
+    private Context context;
     public WiFi(Context context){
+        this.context=context;
         wifiManager = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
         recordNo=0;
+        outputString=new StringBuilder();
     }
     //打开WIFI
     public void OpenWifi(){
@@ -42,7 +47,7 @@ public class WiFi {
         }
         return stringBuilder.toString();
     }
-    public String getOutputString(){
+    public void updateRecord(){
         StringBuilder stringBuilder=new StringBuilder();
         wifiManager.startScan();
         wifiList=wifiManager.getScanResults();
@@ -51,7 +56,11 @@ public class WiFi {
                 stringBuilder.append(recordNo+" "+scanResult.timestamp+" "+scanResult.SSID+" "+scanResult.BSSID+" "+scanResult.level+" "+scanResult.frequency+"\n");
         }
         recordNo++;
-        return stringBuilder.toString();
+        //Toast.makeText(context, "wifi update", Toast.LENGTH_LONG).show();
+        outputString.append(stringBuilder.toString());
+    }
+    public String getOutputString(){
+        return outputString.toString();
     }
     public List<ScanResult> getWifiList(){
         return wifiList;

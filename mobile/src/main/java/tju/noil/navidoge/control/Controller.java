@@ -20,6 +20,7 @@ public class Controller {
     private DataCollector dataCollector;
     private TextView textView [];
     private File file;
+    private File file2;
     private FileOutputStream fos;
     private Context context;
     private boolean timerOn;
@@ -34,6 +35,7 @@ public class Controller {
     public void initialize(){
         File appPath = context.getExternalFilesDir(null);
         file = new File(appPath, "data.txt");
+        file2 = new File(appPath, "wifi_data.txt");
         dataCollector =new DataCollector(context,textView);
         setString(dataCollector.getAllSensorsSize(),textView[0]);
         try {
@@ -48,6 +50,7 @@ public class Controller {
     public void OnClick(View v){
         switch (v.getId())
         {
+            //开始记录
             case R.id.button:
                 //setString(dataCollector.getAllSensorsDetail(),textView[3]);
                 dataCollector.startRecord();
@@ -55,11 +58,14 @@ public class Controller {
                 time_gap=50;
                 timer();
                 break;
+            //停止记录
             case R.id.button2:;
                 timerOn=false;
-                saveDate(dataCollector.getOutputString());
+                saveData(dataCollector.getOutputString(1), this.file, true);
+                //saveData("wifi",this.file2,true);
                 dataCollector.stopRecord();
                 break;
+            //开始持续记录
             case R.id.button5:
                 //setString(dataCollector.getAllSensorsDetail(),textView[3]);
                 dataCollector.startRecord();
@@ -67,17 +73,28 @@ public class Controller {
                 time_gap=200;
                 timer2();
                 break;
+            //结束持续记录
             case R.id.button6:
                 timerOn=false;
                 dataCollector.stopRecord();
                 break;
+            //上一个
             case R.id.button3:
-                setString(dataCollector.getCurrentSensor(-1),textView[1]);
-                setString(dataCollector.getCurrentIndex(),textView[0]);
+                //更新模式
+                dataCollector.IndexMove(-1);
+                //更新面板
+                setString(dataCollector.getCurrentIndex(), textView[0]);
+                setString(dataCollector.getCurrentSensor(),textView[1]);
+                setString(dataCollector.getCurrentData(),textView[2]);
                 break;
+            //下一个
             case R.id.button4:
-                setString(dataCollector.getCurrentSensor(1),textView[1]);
-                setString(dataCollector.getCurrentIndex(),textView[0]);
+                //更新模式
+                dataCollector.IndexMove(1);
+                //更新面板
+                setString(dataCollector.getCurrentIndex(), textView[0]);
+                setString(dataCollector.getCurrentSensor(),textView[1]);
+                setString(dataCollector.getCurrentData(),textView[2]);
                 break;
         }
     }
@@ -88,7 +105,7 @@ public class Controller {
                 //TODO Auto-generated method stub
                 timeCounter++;
                 if(timerOn){
-                    dataCollector.updateRecond(1);
+                    dataCollector.updateRecord();
                     handler.postDelayed(this, time_gap);
                 }
 
@@ -103,10 +120,10 @@ public class Controller {
                 //TODO Auto-generated method stub
                 timeCounter++;
                 if(timerOn){
-                    dataCollector.updateRecond(2);
+                    dataCollector.updateRecord();
                     //setString("Large Test",textView[2]);
-                    setString(dataCollector.getCurrentSensor(0),textView[3]);
-                    saveData(dataCollector.getCurrentOutput());
+                    setString(dataCollector.getCurrentSensor(),textView[3]);
+                    saveData(dataCollector.getCurrentOutput(),file,false);
                     handler.postDelayed(this, time_gap);
                 }
 
@@ -114,23 +131,14 @@ public class Controller {
         };
         handler.postDelayed(runnable, time_gap);
     }
-    public void saveDate(String content){
+    public void saveData(String content,File file,boolean toast){
         try {
             fos = new FileOutputStream(file,true);
             byte [] bytes = content.getBytes();
             fos.write(bytes);
             fos.close();
-            Toast.makeText(context, "保存成功", Toast.LENGTH_LONG).show();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-    public void saveData(String content){
-        try {
-            fos = new FileOutputStream(file,true);
-            byte[] bytes = content.getBytes();
-            fos.write(bytes);
-            fos.close();
+            if (toast)
+                Toast.makeText(context, file.getName()+"保存成功", Toast.LENGTH_LONG).show();
         } catch (IOException e) {
             e.printStackTrace();
         }

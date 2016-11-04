@@ -8,56 +8,45 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.widget.TextView;
-
 import java.io.OutputStream;
 
 /**
  * Created by noil on 2016/7/22.
  */
 public class Sensors extends Activity implements SensorEventListener {
+    public int[] Sensors={0,Sensor.TYPE_ACCELEROMETER,Sensor.TYPE_MAGNETIC_FIELD,Sensor.TYPE_GYROSCOPE,Sensor.TYPE_GRAVITY};
     private final SensorManager sensorManager;
     private final Sensor accelerateSensor;
     private final Sensor magneticFieldSensor;
-    private final Sensor orientationSensor;
     private final Sensor gyroscopeSensor;
+    private final Sensor gravitySensor;
+    public int sensorNumber=4;
+    private int windowSize=20;
     private static final float NS2S = 1.0f / 1000000000.0f;
-    private float timestamp;
     private TextView textView[];
     private static int index=0;
-    private float value[][] = new float[10][3];
-    private float thetaT;
-    private float thetaT_1;
-    private float thetaCompass;
-    private float thetaGyro;
-    private static float ROTATION_C=0.9f;
-    private final float[] deltaRotationVector = new float[4];
-    private float[] deltaRotationMatrix = new float[9];
-    private float[] rotationCurrent = new float[9];
-    private StringBuilder outputString;
-    public float startTimestamp;
+    private float value[][] = new float[10][6];
+    private float records[][]=new float[4][windowSize];
     public boolean record;
     public int recordNo;
+    private StringBuilder outputString;
+    public boolean first;
     public Sensors(Context context,TextView[] textView) {
         this.textView=textView;
-        recordNo=1;
+        recordNo=0;
         sensorManager = (SensorManager)context.getSystemService(Context.SENSOR_SERVICE);
         accelerateSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         magneticFieldSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
-        orientationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION);
         gyroscopeSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
-        sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
-        sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
-        sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
-        sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
-        sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
+        gravitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
         sensorManager.registerListener(this, accelerateSensor, SensorManager.SENSOR_DELAY_GAME);
         sensorManager.registerListener(this, magneticFieldSensor, SensorManager.SENSOR_DELAY_GAME);
-        sensorManager.registerListener(this, orientationSensor, SensorManager.SENSOR_DELAY_GAME);
         sensorManager.registerListener(this, gyroscopeSensor, SensorManager.SENSOR_DELAY_GAME);
+        sensorManager.registerListener(this, gravitySensor, SensorManager.SENSOR_DELAY_GAME);
+        first=true;
     }
 
     public void startRecord(){
-        startTimestamp=timestamp;
         record=true;
         outputString=new StringBuilder();
     }
@@ -85,168 +74,180 @@ public class Sensors extends Activity implements SensorEventListener {
     }
 
     public void onSensorChanged(SensorEvent event) {
+        if (first){
+            for (int i=0;i<10;i++) {
+                value[i][3]=event.timestamp;
+                value[i][4]=0;
+            }
+            first=false;
+        }
         switch (event.sensor.getType())
         {
             case Sensor.TYPE_ACCELEROMETER:
                 value[1][0] = event.values[0];
                 value[1][1] = event.values[1];
                 value[1][2] = event.values[2];
-                value[3]=calculateOrientation();
-                updateCurrent(event.sensor.getType());
+                value[1][3] = event.timestamp;
+                if (index==1){setString(getCurrentData(),textView[2]);}
                 break;
             case Sensor.TYPE_MAGNETIC_FIELD:
                 value[2][0] = event.values[0];
                 value[2][1] = event.values[1];
                 value[2][2] = event.values[2];
-                value[3]=calculateOrientation();
-                updateCurrent(event.sensor.getType());
-                break;
-            case Sensor.TYPE_ORIENTATION:
-                updateCurrent(event.sensor.getType());
+                value[2][3] = event.timestamp;
+                float [] values = new float[3];
+                float [] R= new float[9];
+                float [] acc=new float[3];
+                acc[0]=value[1][0];
+                acc[1]=value[1][1];
+                acc[2]=value[1][2];
+                SensorManager.getRotationMatrix(R,null,acc,event.values);
+                SensorManager.getOrientation(R,values);
+                value[2][4] =  values[0];
+                if (index==2){setString(getCurrentData(),textView[2]);}
                 break;
             case Sensor.TYPE_GYROSCOPE:
-                // This timestep's delta rotation to be multiplied by the
-                // current rotation
-                // after computing it from the gyro sample data.
-                if (timestamp!=0) {
-                    final float dT = (event.timestamp - timestamp) * NS2S;
-                    // Axis of the rotation sample, not normalized yet.
-                    value[4][0] = event.values[0];
-                    value[4][1] = event.values[1];
-                    value[4][2] = event.values[2];
-                    // Calculate the angular speed of the sample  
-                    float omegaMagnitude = (float) Math.sqrt(value[4][0] * value[4][0]
-                            + value[4][1] * value[4][1] + value[4][2] * value[4][2]);
-                    // Integrate around this axis with the angular speed by the  
-                    // timestep  
-                    // in order to get a delta rotation from this sample over  
-                    // the timestep  
-                    // We will convert this axis-angle representation of the  
-                    // delta rotation  
-                    // into a quaternion before turning it into the rotation  
-                    // matrix.  
-                    thetaGyro = omegaMagnitude * dT / 2.0f;
-//                    float sinThetaOverTwo = (float) Math.sin(thetaOverTwo);
-//                    float cosThetaOverTwo = (float) Math.cos(thetaOverTwo);
-//                    deltaRotationVector[0] = sinThetaOverTwo * value[4][0];
-//                    deltaRotationVector[1] = sinThetaOverTwo * value[4][1];
-//                    deltaRotationVector[2] = sinThetaOverTwo * value[4][2];
-//                    deltaRotationVector[3] = cosThetaOverTwo;
+                final float dT = (event.timestamp - value[3][3]) * NS2S;
+                value[3][0] = event.values[0];
+                value[3][1] = event.values[1];
+                value[3][2] = event.values[2];
+                value[3][3] = event.timestamp;
+                float v = (float)Math.sqrt(value[3][1]*value[3][1]+value[3][2]*value[3][2]);
+                if (value[3][1]*value[3][2]<0){
+                    if (value[3][1]+value[3][2]<0)
+                        v=-v;
                 }
                 else{
-                    thetaT_1=(float) Math.toDegrees(value[3][0]);
+                    if (value[3][1]<0)
+                        v=-v;
                 }
-                timestamp=event.timestamp;
-
-//                SensorManager.getRotationMatrixFromVector(deltaRotationMatrix,
-//                        deltaRotationVector);
-                updateCurrent(event.sensor.getType());
+                value[3][4]=value[3][4]-v*dT;
+                value[3][5]=value[3][5]-value[3][0]*dT;
+                if (index==3){setString(getCurrentData(),textView[2]);}
+                break;
+            case Sensor.TYPE_GRAVITY:
+                value[4][0] = event.values[0];
+                value[4][1] = event.values[1];
+                value[4][2] = event.values[2];
+                value[4][3] = event.timestamp;
+                float g=(float)Math.sqrt(value[4][0]*value[4][0]+value[4][1]*value[4][1]+value[4][2]*value[4][2]);
+                value[4][4]=(float)Math.asin(value[4][2]/g);
+                if (index==4){setString(getCurrentData(),textView[2]);}
                 break;
         }
     }
-    public float[] calculateOrientation(){
-        float[] values = new float[3];
-        float[] R =  new float[9];
-        SensorManager.getRotationMatrix(R, null, value[1],
-                value[2]);
-        //SensorManager.getRotationMatrixFromVector();
-        SensorManager.getOrientation(R, values);
-        return values;
-    }
-    public void updateCurrent(int type){
-        textView[2].setText(getCurrent(type));
-    }
-    public void updateRecond(int type){
-        if (record){
-            if (type==1){
-                outputString.append(recordNo+" "+(timestamp-startTimestamp)*NS2S+" ");
-                outputString.append(thetaT+" "+thetaT_1+"\n");
-            }
-            else{
-                outputString=new StringBuilder();
-                outputString.append(recordNo+" "+(timestamp-startTimestamp)*NS2S+" ");
-                outputString.append(thetaT+" "+thetaT_1+"\n");
+
+    public void updateRecord(boolean All){
+
+        if(All){
+            outputString.append(getCurrentOutput(1));
+            outputString.append(getCurrentOutput(2));
+            outputString.append(getCurrentOutput(3));
+            outputString.append(getCurrentOutput(4));
+        }
+        else{
+            records[0][recordNo%windowSize]=value[2][4];//C
+            records[1][recordNo%windowSize]=value[3][4];//S
+            records[2][recordNo%windowSize]=value[3][5];//S2
+            records[3][recordNo%windowSize]=value[4][4];//G
+            recordNo++;
+
+            if (recordNo%windowSize==0){
+                for (int i=0;i<windowSize;i++){
+                    for (int j=0;j<4;j++){
+                        outputString.append(records[j][i]+" ");
+                    }
+                    outputString.append("\n");
+                }
+                records=new float[4][windowSize];
             }
         }
     }
-    public String getCurrent(int i){
+    public String getCurrentData(){
+        return new String("x:" + value[index][0] + "\n" + "y:" + value[index][1] + "\n" + "z:" + value[index][2] + "\n"+ "o:" + value[index][4] + "\n");
+    }
+    public String getCurrentOutput(int i){
         index=i;
         StringBuilder stringBuilder = new StringBuilder();
-        switch (i) {
+        stringBuilder.append(i+ " "+value[i][0] + " " + value[i][1] + " "  + value[i][2]+ " "  + value[i][3]+ " "  + value[i][4]+ " "  + value[i][5]+"\n");
+        return stringBuilder.toString();
+    }
+    public String getCurrentType(int i){
+        index=i;
+        StringBuilder stringBuilder = new StringBuilder();
+        switch (Sensors[i]) {
             case Sensor.TYPE_ACCELEROMETER:
                 stringBuilder.append(" 加速度传感器");
                 break;
             case Sensor.TYPE_GYROSCOPE:
-                updateOrientation();
                 stringBuilder.append(" 陀螺仪传感器");
-                break;
-            case Sensor.TYPE_LIGHT:
-                stringBuilder.append(" 环境光线传感器");
                 break;
             case Sensor.TYPE_MAGNETIC_FIELD:
                 stringBuilder.append(" 电磁场传感器");
                 break;
-            case Sensor.TYPE_ORIENTATION:
-                stringBuilder.append(" 加速度+电磁");
-                break;
-            case Sensor.TYPE_PROXIMITY:
-                stringBuilder.append(" 距离传感器");
-                break;
-            case Sensor.TYPE_ROTATION_VECTOR:
-                stringBuilder.append(" 翻转传感器");
-                break;
-            case Sensor.TYPE_LINEAR_ACCELERATION:
-                stringBuilder.append(" 线性加速度");
-                break;
             case Sensor.TYPE_GRAVITY:
-                stringBuilder.append(" 重力感应器传感器");
-                break;
-            default:
-                stringBuilder.append(" 未知传感器" );
-                break;
+                stringBuilder.append(" 重力传感器");
         }
-        stringBuilder.append("\nx:" + value[i][0] + "\n" + "y:" + value[i][1] + "\n" + "z:" + value[i][2] + "\n");
         return stringBuilder.toString();
     }
-    public void updateOrientation(){
-        textView[1].setText(getOrientation());
-    }
-    public String getOrientation(){
-        String direction=new String();
-        thetaCompass=(float) Math.toDegrees(value[3][0]);
-        thetaT=ROTATION_C*thetaCompass+(1-ROTATION_C)*(thetaT_1+thetaGyro);
-        thetaT_1=thetaT;
-        float angle=thetaT;
-        if (angle>=-5&&angle<=5){
-            direction="正北";
-        }
-        else if (angle>=5&&angle<85){
-            direction="东北";
-        }
-        else if (angle>=85&&angle<=95){
-            direction="正东";
-        }
-        else if (angle>95&&angle<175){
-            direction="东南";
-        }
-        else if(angle>=175&&angle<=180
-                ||angle>=-180&&angle<=-175){
-            direction="正南";
-        }
-        else if(angle>-175&&angle<-95){
-            direction="西南";
-        }
-        else if(angle>=-95&&angle<=-85){
-            direction="正西";
-        }
-        else if(angle>-85&&angle<-5){
-            direction="西北";
-        }
-        direction=direction+thetaT;
-        return direction;
-    }
+
     public String getOutputString(){
         return outputString.toString();
     }
+
+    public void setString(String string,TextView v){
+        v.setText(string);
+    }
+
+//    public void updateOrientation(){
+//        textView[1].setText(getOrientation());
+//    }
+//    public float[] calculateOrientation(){
+//        float[] values = new float[3];
+//        float[] R =  new float[9];
+//        SensorManager.getRotationMatrix(R, null, value[1],
+//                value[2]);
+//        //SensorManager.getRotationMatrixFromVector();
+//        SensorManager.getOrientation(R, values);
+//        return values;
+//    }
+//    public void updateCurrent(String s){
+//        textView[2].setText(s);
+//    }
+//
+//    public String getOrientation(){
+//        String direction=new String();
+//        thetaCompass=(float) Math.toDegrees(value[3][0]);
+//        thetaT=ROTATION_C*thetaCompass+(1-ROTATION_C)*(thetaT_1+thetaGyro);
+//        thetaT_1=thetaT;
+//        float angle=thetaT;
+//        if (angle>=-5&&angle<=5){
+//            direction="正北";
+//        }
+//        else if (angle>=5&&angle<85){
+//            direction="东北";
+//        }
+//        else if (angle>=85&&angle<=95){
+//            direction="正东";
+//        }
+//        else if (angle>95&&angle<175){
+//            direction="东南";
+//        }
+//        else if(angle>=175&&angle<=180
+//                ||angle>=-180&&angle<=-175){
+//            direction="正南";
+//        }
+//        else if(angle>-175&&angle<-95){
+//            direction="西南";
+//        }
+//        else if(angle>=-95&&angle<=-85){
+//            direction="正西";
+//        }
+//        else if(angle>-85&&angle<-5){
+//            direction="西北";
+//        }
+//        direction=direction+thetaT;
+//        return direction;
+//    }
 }
 
